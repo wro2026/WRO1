@@ -1,50 +1,63 @@
-Algorithms
+4. Systems Thinking & Engineering Decisions
 
-1. Main Objective
+4.1 How the Subsystems Work Together
 
-The main objective of the algorithm is to complete 3 laps within 3 minutes while minimizing the number of accidents.
-The algorithm therefore focuses on reliable detection, correct turning decisions and consistent movement rather than only maximizing speed.
+The robot is an integrated system rather than four independent parts. The mechanical system determines how quickly and accurately the robot can turn. The sensor architecture determines what information the software receives. The software converts sensor information into navigation decisions. Those decisions command the mechanical drive and steering system.
+The main interaction chain is:
+Field condition → sensors → ESP32/HuskyLens interface where required → SPIKE Hub → navigation decision → motor speed/steering → robot movement → new sensor readings
+A change in one subsystem therefore affects the others. For example, increasing speed may improve straight-line travel time but can make turning less accurate. Similarly, moving a sensor changes the distance at which the software must react.
 
-2. Environment Detection
+4.2 Engineering Constraints
 
-The robot uses distance sensors to detect its surroundings.
-A front distance sensor is used to detect objects in front of the robot.
-There are also distance sensors on the sides of the robot. These provide information about the robot's position relative to objects or walls beside it.
-The robot also uses its color-detection system to identify relevant color changes.
+•	The robot must operate autonomously.
+•	The robot must complete 3 laps within the 3-minute objective.
+•	The chassis must remain mechanically stable during repeated driving.
+•	Steering must be controllable independently from propulsion.
+•	Sensor information must be available in time for a turn decision.
+•	HuskyLens must be integrated despite the SPIKE Prime compatibility limitation.
+•	The design must remain practical to build and modify with the available LEGO system.
 
-3. Turn Decision Algorithm
+4.3 Major Engineering Decisions
 
-When the robot reaches a situation where a turn is required, it follows this general sequence:
-Detect -> Check color -> Decide left/right -> Steer -> Continue
+Problem	Options	Decision	Reasoning
+Main control platform	Raspberry Pi 4 or SPIKE Prime	SPIKE Prime	Reduced setup complexity and allowed faster development
+Color detection	SPIKE color sensor only or HuskyLens	HuskyLens + ESP32 + servo interface	Improved color detection while retaining SPIKE as main controller
+Drive transmission	Direct drive or gearing	Direct drive	Simple, compact and easy to modify
+Steering	Single mechanical steering system or separate control	Separate large motor	Allows independent steering control
+Navigation	Complex learning-based approach or simpler sensor logic	Sensor-based logic	Easier to test, tune and understand for the current task
 
-The distance sensors provide information about the environment, while the color information is checked before the robot decides which direction to take.
+4.4 Iteration Cycle
 
-4. Left/Right Decision
+The development process followed an iterative engineering cycle:
+Build → Test → Identify limitation → Change design → Retest → Select the better-performing configuration
+Iteration 1 changed the main platform from Raspberry Pi 4 to SPIKE Prime because the first approach was too complex and slow to develop.
+Iteration 2 changed the color-detection architecture by adding HuskyLens, ESP32 and a servo because the original color-sensing approach was less accurate.
+Further tuning changed detection distances, motor speed and steering angle based on observed robot behavior.
 
-The robot does not use a fixed direction for every turn.
-After detecting the relevant situation and checking the color, the algorithm decides whether the robot should turn left or right.
-The steering motor then moves the front wheels in the selected direction.
+4.5 Risk and Failure Analysis
 
-5. Obstacle Handling
+Risk / failure point	Possible effect	Mitigation	Validation
+Incorrect distance reading	Turn triggered too early/late	Use calibrated thresholds and repeat unstable detections	Repeated sensor tests
+Color detection error	Wrong left/right decision	Use HuskyLens and validate color information	Repeated color tests
+High speed during turn	Overshoot or missed path	Slow before turning	Compare turn behavior at different speeds
+Steering backlash	Inconsistent turn angle	Use a fixed steering setting and check mechanical connections	Repeated turning tests
+Wheel slip	Actual path differs from expected path	Use controlled speed and observe wheel/field interaction	Repeated distance/turn tests
+Loose chassis connection	Mechanical instability	Inspect and reinforce critical LEGO connections	Repeated driving tests
+Interface failure	HuskyLens information unavailable to SPIKE	Keep SPIKE color sensor as the communication pathway and retry detection	Integration tests
 
-When an obstacle or relevant object is detected, the robot uses the following general process:
-1.	Detect the object using the distance sensors.
-2.	Check the color information.
-3.	Decide whether to go left or right.
-4.	Steer in the selected direction.
-5.	Continue the route.
+4.6 Testing Metrics
 
-If the robot receives an unexpected sensor reading, the current approach is to retry the detection/decision process rather than immediately continuing with an incorrect decision.
+To make engineering decisions measurable, the final testing record should use repeatable metrics rather than subjective descriptions alone.
+
+<img width="1132" height="337" alt="image" src="https://github.com/user-attachments/assets/43dc6ce5-7452-4c27-b7f9-34f1f2abaa60" />
 
 
-6. Algorithm Choice
+4.7 Performance Objective
 
-We chose this approach because it is straightforward and easy to program.
-Rather than using a highly complicated algorithm, the robot uses sensor information and simple decisions to determine its actions. This makes the behavior easier to understand, test and modify during development.
+The algorithm's main objective is to complete 3 laps within 3 minutes while minimizing accidents. Therefore, the engineering goal is not simply maximum speed. The selected design balances speed, sensing reliability, steering control and mechanical stability.
+The final configuration should be selected from repeated tests. If a higher speed reduces lap time but increases missed turns or accidents, the lower and more reliable speed is the better engineering choice for the competition objective.
 
-7. Testing and Algorithm Improvements
+4.8 Final Engineering Rationale
 
-During testing, we changed the distance-sensor detection lengths.
-Different detection distances were tested to determine how the robot should respond to objects in its environment.
-These changes were made based on testing rather than being selected arbitrarily. Adjusting the detectiton distance helped us improve the robot's ability to detect situations requiring a decision.
-
+The final robot was developed by progressively reducing unnecessary complexity while improving the parts that directly affect autonomous performance. SPIKE Prime was selected as the main control platform because it accelerated development. Direct drive and LEGO construction were retained because they are simple and easy to modify. HuskyLens was added because improved color detection was valuable, while the ESP32 and servo interface solved the compatibility constraint.
+The resulting architecture connects mechanical, electronic and software decisions: sensor placement determines when the software can detect a condition; detection thresholds determine when the robot begins a maneuver; motor speed and steering angle determine the physical result; and repeated testing is used to tune these parameters. This systems approach is intended to produce a robot that is not only functional, but also understandable, testable and reproducible.
