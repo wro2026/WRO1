@@ -1,98 +1,70 @@
-Software
+3. Software Architecture & Obstacle Strategy
 
-1. Programming Language
+3.1 Programming Architecture
 
-The robot is programmed using Python.
-The software controls the SPIKE Prime Hub, motors and sensors and coordinates the robot's autonomous behavior.
+The robot is programmed in Python. The software coordinates motor control, sensor input, steering and autonomous navigation.
+The software can be understood as five functional stages: sensing, validation, decision, motion control and route completion.
 
-2. Main Program
+<img width="1104" height="310" alt="image" src="https://github.com/user-attachments/assets/69b159bf-8ed7-4e35-aca6-4abfa151f2ac" />
 
-The robot follows a simple autonomous sequence.
-At the beginning, the robot drives forward. The sensors are used to detect the environment and determine when a turn is required.
-When a turn is detected, the robot changes its steering direction and turns. After completing the required turns, the robot continues until the stopping condition is reached.
-The current program counts the turns made by the robot. After 12 turns, the robot continues for approximately 30 cm and then stops.
 
-3. Lane and Environment Detection
+3.2 Main Autonomous State Machine
 
-The robot uses its distance sensors to detect its surroundings while driving.
-There is one distance sensor on each side of the robot. These sensors provide distance information that the program can use while navigating.
+The robot follows the following state sequence:
 
-4. Color and Obstacle Detection
+1.	START: initialize the controller, motors, sensors and required variables.
 
-The robot uses the HuskyLens and SPIKE Prime color sensor as part of its detection system.
-The HuskyLens detects color information. Because SPIKE Prime cannot directly interpret the HuskyLens, an ESP32 and servo are used to communicate the detected color change to the SPIKE Prime color sensor.
-The software can therefore use the color information together with the distance-sensor information during autonomous operation.
+2.	DRIVE: move forward at the normal driving speed.
 
-5. Steering Control
+3.	DETECT: monitor the distance sensors for a navigation condition.
 
-The steering is controlled using the large SPIKE Prime motor.
-The program uses a predetermined steering angle when a turn is required. The steering angle is one of the values that has been adjusted during testing.
-The robot normally drives at a fixed speed and slows down when turning. This allows the robot to approach turns at a lower speed than its normal driving speed.
+4.	VALIDATE: confirm the detection and check the relevant color information.
 
-6. Obstacle Strategy
+5.	DECIDE: determine whether the required direction is left or right.
 
-The robot uses its distance sensors together with its color-detection system to recognize situations that require a change in its path.
-The distance sensors provide information about the distance to objects on the left and right sides of the robot. The HuskyLens and color sensor provide color information.
-The robot uses these inputs to determine when it needs to turn and continue its route.
+6.	SLOW: reduce drive speed before the turn.
 
-7. Turn Counting and Stopping
+7.	TURN: move the steering motor to the selected steering angle.
 
-The program keeps track of the number of turns completed by the robot.
-The current stopping sequence is:
+8.	COUNT: increment the completed-turn counter.
 
-Start
+9.	CONTINUE: return to forward driving.
 
-     ↓
+10.	STOP: after 12 turns, drive approximately 30 cm and stop.
 
-Drive forward
+The state-machine structure was selected because it separates sensing, decision-making and movement. This makes the behavior easier to test and tune than a single long sequence of motor commands.
 
-     ↓
+3.3 Turn Decision Algorithm
 
-Detect turn
+The decision process is:
+Detect condition → Check color → Decide left/right → Steer → Continue
+The robot does not use one fixed direction for every turn. Instead, the relevant sensor condition and color information are considered before the steering direction is selected.
+Conceptually, the control logic is:
+IF a turn condition is detected: validate the reading; check color; select LEFT or RIGHT; reduce speed; apply the steering angle; complete the turn; count the turn; return to driving.
 
-     ↓
+3.4 Obstacle Strategy and Edge Cases
 
-Slow down
+Distance sensors provide information about objects or walls. If an object is detected, the robot checks the color information before selecting a path. The selected direction is then passed to the steering system.
+•	If the sensor reading is unexpected or unstable, repeat the detection/decision process rather than immediately making a turn.
+•	If a valid condition is detected but the color information does not provide the expected classification, the software should repeat the sensing step before committing to a direction.
+•	During turns, the robot reduces drive speed to reduce overshoot.
+•	After each successful turn, the turn counter is updated so the route can be completed without a manual stop.
 
-     ↓
+3.5 Steering Control
 
-Turn
+The large SPIKE Prime motor controls the front-wheel steering mechanism. A predetermined steering angle is used for turns. This angle was adjusted during testing to obtain reliable turning behavior.
+The robot normally drives at a fixed speed and uses a lower speed during turns. This creates a simple two-speed strategy: efficient forward travel and controlled turning.
 
-     ↓
+3.6 Turn Counting and Stopping
 
-Count turn
+The current route-control sequence is designed to complete 12 turns. Once the counter reaches 12, the robot continues for approximately 30 cm and then stops.
+This stopping strategy reduces dependence on a manual operator and gives the autonomous run a defined end condition.
 
-     ↓
+3.7 Software Testing and Tuning
 
-12 turns completed?
+The main software parameters tuned during development were sensor thresholds, detection distance, motor speed and steering angle. These parameters were changed after observing robot behavior during testing.
 
-  ├── No → Continue driving
+<img width="1135" height="407" alt="image" src="https://github.com/user-attachments/assets/9da94b8c-185c-4337-b8dd-42debd01b56a" />
 
-  └── Yes
-  
-      ↓
-  
-Drive 30 cm
- 
-      ↓
-  
-  Stop
 
-This allows the robot to complete the required sequence without relying only on a manually controlled stop.
-
-8. Software Testing and Tuning
-
-During development, we adjusted several software parameters based on testing.
-The main values that were tuned were:
-•	Sensor thresholds
-•	Motor speed
-•	Turning angle
-Changing these values allowed us to improve the robot's behavior during driving and turning.
-The robot's normal driving speed is fixed, while the robot uses a lower speed during turns.
-
-9. Development Approach
-
-We initially experimented with a Raspberry Pi 4 based approach. This required a learning-based system and took a significant amount of time to develop. Pairing was also difficult.
-We later changed to SPIKE Prime with Python, which allowed the team to make progress more quickly and simplify the development process.
-The current software therefore focuses on using sensor inputs, predetermined motor settings, steering angles and turn counting to achieve consistent autonomous behavior.
-
+The final report should retain the measured values from the team's actual tests. Values should not be invented merely to make the documentation appear complete.
